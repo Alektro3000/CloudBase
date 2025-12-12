@@ -1,36 +1,32 @@
 package com.al3000.CloudBase.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
 
-@Data
 @Table(name = "usernames")
 @Entity
-public class UserInfo implements UserDetails {
+@Getter
+@Setter
+@NoArgsConstructor
+@RequiredArgsConstructor
+public class UserDetailCustom implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer id = null;
 
+    @NonNull
     @Column(unique = true, nullable = false, length = 50)
-    String username;
+    private String username;
 
+    @NonNull
     @Column(nullable = false)
-    String password;
-
-    public UserInfo(String username, String password) {
-        this.username = username;
-        this.password = password;
-    }
-
-    public UserInfo() {
-
-    }
+    private String password;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -38,6 +34,7 @@ public class UserInfo implements UserDetails {
     }
 
     @Override
+    @NonNull
     public String getUsername() {
         return username;
     }

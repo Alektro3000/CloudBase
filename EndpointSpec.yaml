@@ -1,0 +1,472 @@
+openapi: 3.1.0
+info:
+  title: Cloud Storage API
+  version: 1.0.0
+  description: |
+    Архитектурный стиль: RPC для /auth, REST для остального.
+    Все эндпоинты существуют под общим путём /api.
+    Авторизация: сессии (cookie).
+servers:
+  - url: /api
+
+tags:
+  - name: Auth
+  - name: User
+  - name: Resource
+  - name: Directory
+
+security:
+  - cookieAuth: []
+
+paths:
+  /auth/sign-up:
+    post:
+      tags: [Auth]
+      security: [] # публично
+      summary: Регистрация
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequest"
+            examples:
+              sample:
+                value: { username: "user_1", password: "password" }
+      responses:
+        "201":
+          description: Created (сессия создана, выставлена cookie)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /auth/sign-in:
+    post:
+      tags: [Auth]
+      security: [] # публично
+      summary: Авторизация
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequest"
+            examples:
+              sample:
+                value: { username: "user_1", password: "password" }
+      responses:
+        "200":
+          description: OK (сессия создана/обновлена, выставлена cookie)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /auth/sign-out:
+    post:
+      tags: [Auth]
+      summary: Выход из аккаунта
+      responses:
+        "204":
+          description: No Content
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /user/me:
+    get:
+      tags: [User]
+      summary: Текущий пользователь
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /resource:
+    get:
+      tags: [Resource]
+      summary: Получение информации о ресурсе
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    delete:
+      tags: [Resource]
+      summary: Удаление ресурса
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    post:
+      tags: [Resource]
+      summary: Аплоад ресурсов (multipart)
+      description: |
+        GET параметр path — путь к папке назначения (должен заканчиваться на /).
+        Тело — multipart/form-data с файлами. Если имя файла содержит поддиректории,
+        они будут созданы (например upload_folder/test.txt).
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required: [files]
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /resource/download:
+    get:
+      tags: [Resource]
+      summary: Скачивание ресурса
+      description: |
+        Возвращает бинарное содержимое файла (application/octet-stream).
+        Если ресурс — папка, скачивается zip-архив содержимого.
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      responses:
+        "200":
+          description: OK (binary)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /resource/move:
+    get:
+      tags: [Resource]
+      summary: Переименование/перемещение ресурса
+      description: |
+        GET параметры: from и to — полные пути к ресурсу (URL-encoded).
+        При переименовании меняется только имя, при перемещении — только путь.
+      parameters:
+        - $ref: "#/components/parameters/FromParam"
+        - $ref: "#/components/parameters/ToParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /resource/search:
+    get:
+      tags: [Resource]
+      summary: Поиск ресурсов
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Поисковый запрос (URL-encoded)
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /directory:
+    get:
+      tags: [Directory]
+      summary: Получение содержимого папки (не рекурсивно)
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    post:
+      tags: [Directory]
+      summary: Создание пустой папки
+      parameters:
+        - $ref: "#/components/parameters/PathParam"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectoryResource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: Spring Session cookie (имя можно поменять под вашу конфигурацию)
+
+  parameters:
+    PathParam:
+      name: path
+      in: query
+      required: true
+      description: |
+        Полный путь к ресурсу (URL-encoded).
+        Для папки путь должен заканчиваться на "/".
+      schema:
+        type: string
+        minLength: 1
+      examples:
+        file:
+          value: folder1/folder2/file.txt
+        dir:
+          value: folder1/folder2/
+
+    FromParam:
+      name: from
+      in: query
+      required: true
+      description: Старый полный путь (URL-encoded)
+      schema:
+        type: string
+        minLength: 1
+
+    ToParam:
+      name: to
+      in: query
+      required: true
+      description: Новый полный путь (URL-encoded)
+      schema:
+        type: string
+        minLength: 1
+
+  responses:
+    BadRequest:
+      description: 400 Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            sample:
+              value: { message: "Текст ошибки" }
+
+    Unauthorized:
+      description: 401 Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            sample:
+              value: { message: "Текст ошибки" }
+
+    NotFound:
+      description: 404 Not Found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            sample:
+              value: { message: "Текст ошибки" }
+
+    Conflict:
+      description: 409 Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            sample:
+              value: { message: "Текст ошибки" }
+
+    ServerError:
+      description: 500 Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            sample:
+              value: { message: "Текст ошибки" }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      description: |
+        Тело ответа при ошибке. Может содержать дополнительные поля Spring,
+        но гарантируется наличие message.
+      properties:
+        message:
+          type: string
+      required: [message]
+      additionalProperties: true
+
+    AuthRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required: [username, password]
+      additionalProperties: false
+
+    UserResponse:
+      type: object
+      properties:
+        username:
+          type: string
+      required: [username]
+      additionalProperties: false
+
+    ResourceType:
+      type: string
+      enum: [DIRECTORY, FILE]
+
+    Resource:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Путь к папке, в которой лежит ресурс (заканчивается на "/")
+        name:
+          type: string
+        size:
+          type: integer
+          minimum: 0
+          description: Размер файла в байтах (для папки поле может отсутствовать)
+        type:
+          $ref: "#/components/schemas/ResourceType"
+      required: [path, name, type]
+      additionalProperties: false
+
+    DirectoryResource:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Путь к родительской папке (заканчивается на "/")
+        name:
+          type: string
+          description: Имя созданной папки
+        type:
+          const: DIRECTORY
+      required: [path, name, type]
+      additionalProperties: false
+
+    ResourceList:
+      type: array
+      items:
+        $ref: "#/components/schemas/Resource"

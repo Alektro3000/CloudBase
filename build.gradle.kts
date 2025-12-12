@@ -31,13 +31,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    implementation("org.springframework.data:spring-data-commons")
+
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
 
     //Minio
-    implementation("io.minio:minio:8.5.7")
+    implementation("io.minio:minio:8.6.0")
 
-    
 
     runtimeOnly("org.postgresql:postgresql")
 }
