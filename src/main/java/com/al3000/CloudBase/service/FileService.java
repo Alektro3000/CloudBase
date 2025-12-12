@@ -18,6 +18,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,7 +31,22 @@ import java.util.zip.ZipOutputStream;
 public class FileService {
     final private FileRepository fileRepository;
 
+    public void addRecursivelyFolders(FilePath path) throws InternalServerException {
+        String[] parts = path.path().split("/");
+
+        StringBuilder current = new StringBuilder();
+
+        for (int i = 0; i < parts.length - 1; i++) {
+            if (!current.isEmpty()) {
+                current.append("/");
+            }
+            current.append(parts[i]);
+            createFolder(new FilePath(path.username(), current.toString()));
+        }
+    }
+
     public void uploadFile(MultipartFile file, FilePath path) throws InternalServerException {
+        addRecursivelyFolders(path);
         fileRepository.uploadFile(file, path);
     }
 
@@ -51,6 +68,8 @@ public class FileService {
     }
 
     public FileInfo moveFile(FilePath path, FilePath target) throws DestinationAlreadyExist, InternalServerException {
+
+
         List<Pair<FilePath,FilePath>> renameList = fileRepository.getFolderContent(path, true)
                 .map(object -> {
                             var sourcePath = object.getFilePath();
@@ -64,6 +83,7 @@ public class FileService {
             throw new DestinationAlreadyExist("File already exists");
 
         try {
+            addRecursivelyFolders(target);
 
             for (var entry : renameList) {
                 fileRepository.copyObject(entry.getFirst(), entry.getSecond());
@@ -134,6 +154,7 @@ public class FileService {
     }
 
     public FileInfo createFolder(FilePath filePath) throws InternalServerException {
+        addRecursivelyFolders(filePath);
         return fileRepository.createFolder(filePath).getFileInfo();
     }
 }
