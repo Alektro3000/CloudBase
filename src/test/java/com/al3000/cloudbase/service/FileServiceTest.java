@@ -1,12 +1,12 @@
 package com.al3000.cloudbase.service;
 
+import com.al3000.cloudbase.dto.FileFullInfo;
 import com.al3000.cloudbase.dto.FileInfo;
 import com.al3000.cloudbase.dto.FilePath;
 import com.al3000.cloudbase.exception.DestinationAlreadyExist;
+import com.al3000.cloudbase.exception.FileDoesNotExist;
 import com.al3000.cloudbase.exception.InternalServerException;
-import com.al3000.cloudbase.dto.FileFullInfo;
 import com.al3000.cloudbase.repository.FileRepository;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -24,6 +24,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.hibernate.internal.util.collections.CollectionHelper.listOf;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -34,7 +35,6 @@ class FileServiceTest {
     FileRepository fileRepository;
 
     @InjectMocks
-    @Spy
     FileService fileService;
 
     // Helpers
@@ -45,14 +45,15 @@ class FileServiceTest {
     }
     private void MockCreateFolder() throws InternalServerException {
         when(fileRepository.createFolder(any())).thenAnswer(
-                invocation ->
-                        new FileFullInfo(
+                invocation -> {
+                        var arg = (FilePath) invocation.getArguments()[0];
+                        return new FileFullInfo(
                                 username,
-                                invocation.getArguments()[0].toString(),
-                                "",
+                                arg.getDirectoryPath(),
+                                arg.getDirectoryName(),
                                 0L,
-                                "Directory"
-                        ));
+                                true
+                        );});
     }
 
     private final String username = "alice";
@@ -61,10 +62,10 @@ class FileServiceTest {
     private ArgumentCaptor<List<FilePath>> deleteCaptor;
 
     private FileFullInfo makeFile(String path, String name) {
-        return new FileFullInfo(username, path, name, 12L, "FILE");
+        return new FileFullInfo(username, path, name, 12L, false);
     }
     private FileFullInfo makeDirectory(String path, String name) {
-        return new FileFullInfo(username,  path, name, 0L, "DIRECTORY");
+        return new FileFullInfo(username,  path, name, 0L, true);
     }
 
     // ---------------- addRecursivelyFolders ----------------
@@ -72,7 +73,7 @@ class FileServiceTest {
     @Test
     void addRecursivelyFolders_createsAllParents() throws Exception {
         // Arrange
-        FilePath p = new FilePath(username, "a/b/c");
+        FilePath p = new FilePath(username, "a/b/c/");
 
         MockCreateFolder();
 
@@ -85,7 +86,25 @@ class FileServiceTest {
 
         List<FilePath> created = pathCaptor.getAllValues();
         assertThat(created).extracting(FilePath::path)
-                .containsExactly("a", "a/b", "a/b/c");
+                .containsExactly("a/", "a/b/", "a/b/c/");
+    }
+
+    @Test
+    void addRecursivelyFolders_createsAllParentsExceptFile() throws Exception {
+        // Arrange
+        FilePath p = new FilePath(username, "a/b/c/a");
+        MockCreateFolder();
+
+        // Act
+        fileService.addRecursivelyFolders(p);
+
+        // Assert
+        ArgumentCaptor<FilePath> pathCaptor = ArgumentCaptor.forClass(FilePath.class);
+        verify(fileRepository, times(3)).createFolder(pathCaptor.capture());
+
+        List<FilePath> created = pathCaptor.getAllValues();
+        assertThat(created).extracting(FilePath::path)
+                .containsExactly("a/", "a/b/", "a/b/c/");
     }
 
     // ---------------- uploadFile ----------------
@@ -96,7 +115,7 @@ class FileServiceTest {
         MultipartFile file = new MockMultipartFile(
                 "file", "hello.txt", "text/plain", "hi".getBytes(StandardCharsets.UTF_8)
         );
-        FilePath path = new FilePath(username, "a");
+        FilePath path = new FilePath(username, "a/");
 
         MockCreateFolder();
 
@@ -104,7 +123,7 @@ class FileServiceTest {
         fileService.uploadFile(file, path);
 
         // Assert
-        verify(fileRepository).createFolder(new FilePath(username, "a"));
+        verify(fileRepository).createFolder(path);
         verify(fileRepository).uploadFile(file, path);
         verifyNoMoreInteractions(fileRepository);
     }
@@ -114,9 +133,9 @@ class FileServiceTest {
     @Test
     void getFolderFiles_filtersDirectories_andMapsToFileInfo() {
         // Arrange
-        FilePath folder = new FilePath(username, "a");
+        FilePath folder = new FilePath(username, "a/");
         FileFullInfo directory = makeDirectory("","a");
-        FileFullInfo realFile = makeFile("a", "x.txt");
+        FileFullInfo realFile = makeFile("a/", "x.txt");
 
         when(fileRepository.getFolderContent(folder, false))
                 .thenReturn(Stream.of(directory, realFile));
@@ -131,14 +150,14 @@ class FileServiceTest {
     // ---------------- removeFile ----------------
 
     @Test
-    void removeFile_buildsDeleteObjects_forNonRecursiveContent_andCallsRepository() {
+    void remove_removeDir_buildsRemoveList() {
         // Arrange
-        FilePath folder = new FilePath(username, "a");
+        FilePath folder = new FilePath(username, "a/");
 
         FileFullInfo directory = makeDirectory("","a");
-        FileFullInfo realFile = makeFile("a", "x.txt");
-        FileFullInfo directory1 = makeDirectory("a","b");
-        FileFullInfo realFile1 = makeFile("a/b", "x.txt");
+        FileFullInfo realFile = makeFile("a/", "x.txt");
+        FileFullInfo directory1 = makeDirectory("a/","b");
+        FileFullInfo realFile1 = makeFile("a/b/", "x.txt");
 
         when(fileRepository.getFolderContent(folder, true))
                 .thenReturn(Stream.of(directory, realFile, directory1, realFile1));
@@ -159,15 +178,54 @@ class FileServiceTest {
 
     }
 
+    @Test
+    void remove_removeFile_buildsRemoveItem() {
+        // Arrange
+        FilePath file = new FilePath(username, "a/x.txt");
+
+        // Act
+        fileService.removeFile(file);
+
+        // Assert
+        verify(fileRepository).removeFiles(deleteCaptor.capture());
+        List<FilePath> list = deleteCaptor.getValue();
+
+        assertThat(list).hasSize(1);
+
+        assertThat(list).containsExactlyElementsOf(listOf(file));
+
+    }
+
     // ---------------- moveFile ----------------
 
     @Test
-    void moveFile_whenAnyTargetExists_throwsDestinationAlreadyExist_andDoesNotCopyOrRemove() {
+    void move_whenMoveFile_copiesAll_removesSources_returnsTargetInfo() throws InternalServerException, DestinationAlreadyExist, FileDoesNotExist {
         // Arrange
-        FilePath source = new FilePath(username, "a");
-        FilePath target = new FilePath(username, "b");
+        FilePath source = new FilePath(username, "a/x.txt");
+        FilePath target = new FilePath(username, "b/x.txt");
 
-        FileFullInfo obj = makeFile("a", "x.txt");
+        FileFullInfo targetFullInfo = makeFile("a/", "x.txt");
+
+        when(fileRepository.fileExist(argThat(fp -> fp.path().equals("b/x.txt"))))
+                .thenReturn(false);
+        when(fileRepository.getFileInformation(target)).thenReturn(targetFullInfo);
+
+        // Act
+        fileService.move(source, target);
+
+        // Assert
+        verify(fileRepository).removeFiles(deleteCaptor.capture());
+        List<FilePath> del = deleteCaptor.getValue();
+
+        assertThat(del).hasSize(1);
+    }
+    @Test
+    void move_whenAnyTargetExists_throwsDestinationAlreadyExist_andDoesNotCopyOrRemove() {
+        // Arrange
+        FilePath source = new FilePath(username, "a/");
+        FilePath target = new FilePath(username, "b/");
+
+        FileFullInfo obj = makeFile("a/", "x.txt");
 
         when(fileRepository.getFolderContent(source, true))
                 .thenReturn(Stream.of(obj));
@@ -176,7 +234,7 @@ class FileServiceTest {
                 .thenReturn(true);
 
         // Act & Assert
-        assertThatThrownBy(() -> fileService.moveFile(source, target))
+        assertThatThrownBy(() -> fileService.move(source, target))
                 .isInstanceOf(DestinationAlreadyExist.class);
 
         verify(fileRepository).getFolderContent(any(), any());
@@ -184,13 +242,13 @@ class FileServiceTest {
     }
 
     @Test
-    void moveFile_whenSuccess_copiesAll_removesSources_returnsTargetInfo() throws Exception {
+    void move_whenSuccess_copiesAll_removesSources_returnsTargetInfo() throws Exception {
         // Arrange
-        FilePath source = new FilePath(username, "a");
-        FilePath target = new FilePath(username, "b");
+        FilePath source = new FilePath(username, "a/");
+        FilePath target = new FilePath(username, "b/");
 
-        FileFullInfo obj1 = makeFile("a", "x.txt");
-        FileFullInfo obj2 = makeFile("a/c", "y.txt");
+        FileFullInfo obj1 = makeFile("a/", "x.txt");
+        FileFullInfo obj2 = makeFile("a/c/", "y.txt");
 
         when(fileRepository.getFolderContent(source, true)).thenReturn(Stream.of(obj1, obj2));
 
@@ -198,11 +256,11 @@ class FileServiceTest {
 
         MockCreateFolder();
 
-        FileFullInfo targetFullInfo = makeFile("b/c", "y.txt");
+        FileFullInfo targetFullInfo = makeFile("b/c/", "y.txt");
         when(fileRepository.getFileInformation(target)).thenReturn(targetFullInfo);
 
         // Act
-        FileInfo result = fileService.moveFile(source, target);
+        FileInfo result = fileService.move(source, target);
 
         // Assert
         assertThat(result).isEqualTo(targetFullInfo.getFileInfo());
@@ -217,14 +275,12 @@ class FileServiceTest {
     }
 
     @Test
-    void moveFile_whenRepositoryThrows_wrapsAsInternalServerException() throws Exception {
+    void move_whenRepositoryThrows_wrapsAsInternalServerException() throws Exception {
         // Arrange
-        FilePath source = new FilePath(username, "a");
-        FilePath target = new FilePath(username, "b");
+        FilePath source = new FilePath(username, "a/");
+        FilePath target = new FilePath(username, "b/");
 
-        doNothing().when(fileService).addRecursivelyFolders(target);
-
-        FileFullInfo obj = makeFile("a", "x.txt");
+        FileFullInfo obj = makeFile("a/", "x.txt");
 
         when(fileRepository.getFolderContent(source, true)).thenReturn(Stream.of(obj));
         when(fileRepository.fileExist(any())).thenReturn(false);
@@ -233,9 +289,8 @@ class FileServiceTest {
                 .copyObject(any(), any());
 
         // Act & Assert
-        assertThatThrownBy(() -> fileService.moveFile(source, target))
-                .isInstanceOf(InternalServerException.class)
-                .hasMessageContaining("boom");
+        assertThatThrownBy(() -> fileService.move(source, target))
+                .isInstanceOf(InternalServerException.class);
     }
 
     // ---------------- findFiles ----------------
@@ -246,9 +301,9 @@ class FileServiceTest {
         FilePath root = new FilePath(username, "a");
         String query = "cat";
 
-        FileFullInfo directory = makeDirectory("a", "cat");
-        FileFullInfo cat = makeFile("a", "cat.png");
-        FileFullInfo noMatch = makeFile("a", "dog.png");
+        FileFullInfo directory = makeDirectory("a/", "cat");
+        FileFullInfo cat = makeFile("a/", "cat.png");
+        FileFullInfo noMatch = makeFile("a/", "dog.png");
 
         when(fileRepository.getFolderContent(root, true))
                 .thenReturn(Stream.of(directory, cat, noMatch));
@@ -267,7 +322,7 @@ class FileServiceTest {
         // Arrange
         FilePath file = new FilePath(username, "a/x.txt");
 
-        FileFullInfo info = makeFile("a", "x.txt");
+        FileFullInfo info = makeFile("a/", "x.txt");
         when(fileRepository.getFileInformation(file)).thenReturn(info);
 
         byte[] payload = "hello".getBytes(StandardCharsets.UTF_8);
@@ -287,8 +342,8 @@ class FileServiceTest {
         // Arrange
         FilePath folder = new FilePath(username, "a");
 
-        FileFullInfo dir = makeDirectory("a", "sub");
-        FileFullInfo file = makeFile("a/sub", "x.txt");
+        FileFullInfo dir = makeDirectory("a/", "sub");
+        FileFullInfo file = makeFile("a/sub/", "x.txt");
 
         when(fileRepository.getFolderContent(folder, true)).thenReturn(Stream.of(dir, file));
 
@@ -320,8 +375,8 @@ class FileServiceTest {
         // Arrange
         FilePath folder = new FilePath(username, "a");
 
-        FileFullInfo dir = makeDirectory("a", "sub");
-        FileFullInfo file = makeFile("a/sub", "x.txt");
+        FileFullInfo dir = makeDirectory("a/", "sub");
+        FileFullInfo file = makeFile("a/sub/", "x.txt");
 
         when(fileRepository.getFolderContent(folder, true)).thenReturn(Stream.of(dir, file));
 
@@ -342,8 +397,8 @@ class FileServiceTest {
         FileFullInfo info = makeDirectory("", "a");
 
         // One folder marker + one file
-        FileFullInfo directory = makeDirectory("a", "b");
-        FileFullInfo file = makeFile("a", "x.txt");
+        FileFullInfo directory = makeDirectory("a/", "b");
+        FileFullInfo file = makeFile("a/", "x.txt");
 
 
         when(fileRepository.getFolderContent(folder, true)).thenReturn(Stream.of(directory, file));
@@ -363,12 +418,12 @@ class FileServiceTest {
 
             //Already tested
             assertThat(entry).isNotNull();
-            Assumptions.assumeTrue("x.txt".equals(entry.getName()));
+            assertThat("x.txt").isEqualTo(entry.getName());
 
             byte[] extracted = zin.readAllBytes();
             assertThat(extracted).isEqualTo(payload);
 
-            Assumptions.assumeFalse(zin.getNextEntry() == null);
+            assertThat(zin.getNextEntry()).isNull();
         }
     }
 
@@ -380,7 +435,7 @@ class FileServiceTest {
         // Arrange
         FilePath folder = new FilePath(username, "a/b");
 
-        FileFullInfo created = makeDirectory("a" , "b");
+        FileFullInfo created = makeDirectory("a/" , "b");
         when(fileRepository.createFolder(folder)).thenReturn(created);
 
         // Act

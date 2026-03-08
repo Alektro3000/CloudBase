@@ -44,7 +44,7 @@ public class FileController {
 
     @GetMapping("/move")
     public ResponseEntity<FileInfo> move(Authentication authentication, @RequestParam String from, @RequestParam String to) throws InternalServerException, DestinationAlreadyExist {
-        var result = fileService.moveFile(
+        var result = fileService.move(
                 new FilePath(authentication.getName(), from),
                 new FilePath(authentication.getName(), to)
         );

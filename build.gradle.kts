@@ -47,6 +47,12 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockito:mockito-core:5.21.0")
 
+    //Integration testing
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.0"))
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers:2.0.2")
+    testImplementation("io.minio:minio:8.6.0")
+
     pitest("org.pitest:pitest-junit5-plugin:1.2.3")
 
     //TestLauncher

@@ -42,7 +42,7 @@ public class FileRepository {
             return minioClient.getObject(
                     GetObjectArgs.builder()
                             .bucket(getBucketName())
-                            .object(path.getFilePath())
+                            .object(path.getFullPath())
                             .build()
             );
         } catch (Exception e) {
@@ -55,7 +55,7 @@ public class FileRepository {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(getBucketName())
-                            .object(path.getFilePath() + file.getOriginalFilename())
+                            .object(path.getFullPath() + file.getOriginalFilename())
                             .stream(
                                     file.getInputStream(),
                                     file.getSize(),
@@ -75,11 +75,10 @@ public class FileRepository {
                         .bucket(getBucketName())
                         .objects(
                                 deleteObjects.stream()
-                                        .map(x -> new DeleteObject((x.getFilePath())))
+                                        .map(x -> new DeleteObject((x.getFullPath())))
                                         .toList())
                         .build()
-        ).forEach(x -> {
-        });
+        ).forEach(_ -> {});
     }
 
     public FileFullInfo getFileInformation(FilePath filePath) throws FileDoesNotExist {
@@ -87,16 +86,26 @@ public class FileRepository {
             var statObject = minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(getBucketName())
-                            .object(filePath.getFilePath())
+                            .object(filePath.getFullPath())
                             .build()
             );
+            var isDir = filePath.path().endsWith("/");
+            if (isDir) {
+                return new FileFullInfo(
+                        filePath.username(),
+                        filePath.getDirectoryPath(),
+                        filePath.getDirectoryName(),
+                        statObject.size(),
+                        true                );
+            }
             return new FileFullInfo(
                     filePath.username(),
-                    filePath.path(),
-                    statObject.object(),
+                    filePath.getFilePath(),
+                    filePath.getFileName(),
                     statObject.size(),
-                    filePath.path().endsWith("/") ? "DIRECTORY" : "FILE"
+                    false
             );
+
         } catch (Exception e) {
             throw new FileDoesNotExist(e.getMessage());
         }
@@ -108,16 +117,18 @@ public class FileRepository {
             var objectWriteResponse = minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(getBucketName())
-                            .object(filePath.getFilePath())
+                            .object(filePath.getFullPath())
                             .stream(emptyStream, 0, -1)
                             .build()
             );
+            var path = new FilePath(objectWriteResponse.object());
+
             return new FileFullInfo(
                     filePath.username(),
-                    filePath.path(),
-                    objectWriteResponse.object(),
+                    path.getDirectoryPath(),
+                    path.getDirectoryName(),
                     0L,
-                    "Directory"
+                    true
             );
         } catch (Exception e) {
             throw new InternalServerException(e.getMessage());
@@ -128,7 +139,7 @@ public class FileRepository {
         return StreamSupport.stream(minioClient.listObjects(
                         ListObjectsArgs.builder()
                                 .bucket(getBucketName())
-                                .prefix(folderPath.getFilePath())
+                                .prefix(folderPath.getFullPath())
                                 .recursive(recursive)
                                 .build()
                 ).spliterator(), false)
@@ -151,8 +162,8 @@ public class FileRepository {
                             var path = noPrefix;
                             String name;
                             if (path.contains("/")) {
-                                path = path.substring(0, path.lastIndexOf('/'));
-                                name = noPrefix.substring(path.length() + 1);
+                                path = path.substring(0, path.lastIndexOf('/')+1);
+                                name = noPrefix.substring(path.length());
                             } else {
                                 //Case of empty path
                                 name = path;
@@ -164,7 +175,7 @@ public class FileRepository {
                                     path,
                                     name,
                                     object.size(),
-                                    isDir ? "DIRECTORY" : "FILE"
+                                    isDir
                             ));
                         }
                 ).flatMap(Optional::stream);
@@ -175,7 +186,7 @@ public class FileRepository {
             minioClient.statObject(
                     StatObjectArgs.builder()
                             .bucket(getBucketName())
-                            .object(path.getFilePath())
+                            .object(path.getFullPath())
                             .build()
             );
             return true;
@@ -188,11 +199,11 @@ public class FileRepository {
         minioClient.copyObject(
                 CopyObjectArgs.builder()
                         .bucket(getBucketName())
-                        .object(target.getFilePath())
+                        .object(target.getFullPath())
                         .source(
                                 CopySource.builder()
                                         .bucket(getBucketName())
-                                        .object(source.getFilePath())
+                                        .object(source.getFullPath())
                                         .build()
                         )
                         .build()
