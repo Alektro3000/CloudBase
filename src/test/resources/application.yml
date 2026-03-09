@@ -1,7 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cloudbase;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 logging:
   level:
     org:
       springframework:
         security:
           web:
-            FilterChainProxy: Debug
+            FilterChainProxy: INFO
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  secure: false
+  bucket: user-files
