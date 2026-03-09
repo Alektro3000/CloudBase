@@ -16,7 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.stereotype.Component;
 
@@ -54,9 +53,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("api/auth/sign-in", "api/auth/sign-up").permitAll()
-                        .requestMatchers("index.html", "config.js").permitAll()
-                        .requestMatchers("assets/*").permitAll()
+                        .requestMatchers("/api/auth/sign-in", "/api/auth/sign-up").permitAll()
+                        .requestMatchers("/index.html", "/config.js", "/login", "/registration").permitAll()
+                        .requestMatchers("/assets/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -69,7 +68,7 @@ public class SecurityConfig {
                                 log.logoutRequestMatcher(new AntPathRequestMatcher("/api/auth/sign-out", "POST"))
                                         .invalidateHttpSession(true)
                                         .clearAuthentication(true)
-                                        .deleteCookies(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)
+                                        .deleteCookies("SESSION")
                                         .logoutSuccessHandler(
                                                 (req, res, auth)
                                                         -> res.setStatus(204))

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -100,7 +101,7 @@ public class LoginServiceTest {
         when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
 
         // Act + Assert
-        assertThatThrownBy(() -> loginService.login(loginInfo, request))
+        assertThatThrownBy(() -> loginService.login(loginInfo, request, null))
                 .isInstanceOf(UserNotFoundException.class);
 
         verify(userRepository, only()).findByUsername(username);
@@ -119,7 +120,7 @@ public class LoginServiceTest {
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(userDetailCustomWrongPassword));
 
         // Act + Assert
-        assertThatThrownBy(() -> loginService.login(loginInfo, request))
+        assertThatThrownBy(() -> loginService.login(loginInfo, request, null))
                 .isInstanceOf(UserNotFoundException.class);
 
         verify(userRepository, only()).findByUsername(username);
@@ -135,6 +136,7 @@ public class LoginServiceTest {
     void login_whenUserAndPasswordAreCorrect_Authenticate() throws UserNotFoundException {
         // Arrange
         MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
         lenient().when(userRepository.findByUsername(username)).thenReturn(Optional.of(userDetailCustom));
 
@@ -147,7 +149,7 @@ public class LoginServiceTest {
                 .thenReturn(authResult);
 
         // Act
-        var result = loginService.login(loginInfo, request);
+        var result = loginService.login(loginInfo, request,response );
 
         // Assert
         assertThat(result).isNotNull();

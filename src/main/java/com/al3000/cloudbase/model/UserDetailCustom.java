@@ -11,14 +11,13 @@ import java.util.List;
 @Table(name = "usernames")
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor
 @RequiredArgsConstructor
 public class UserDetailCustom implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id = null;
+    private Integer id;
 
     @NonNull
     @Column(unique = true, nullable = false, length = 50)

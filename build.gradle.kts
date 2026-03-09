@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+
     // --- Spring Web (REST, MVC) ---
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -46,6 +47,14 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockito:mockito-core:5.21.0")
+    testImplementation("org.junit.platform:junit-platform-suite")
+
+    //Cucumber
+    testImplementation("io.cucumber:cucumber-java:7.20.1")
+    testImplementation("io.cucumber:cucumber-spring:7.20.1")
+    testRuntimeOnly("io.cucumber:cucumber-junit-platform-engine:7.20.1")
+
+    testRuntimeOnly("com.h2database:h2")
 
     //Integration testing
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.0"))
@@ -64,6 +73,9 @@ tasks.test {
     maxParallelForks = 1
     forkEvery = 1
     jvmArgs("-XX:+EnableDynamicAgentLoading")
+    testLogging {
+        showStandardStreams = true
+    }
     finalizedBy(tasks.jacocoTestReport) // generate report after tests
 }
 
@@ -98,7 +110,15 @@ pitest {
 
     excludedClasses.set(listOf(
         "com.al3000.cloudbase.*Config*",
-        "com.al3000.cloudbase.*Application*",
-        "com.al3000.cloudbase.controller.*"
+        "com.al3000.cloudbase.*Application*"
     ))
+}
+
+
+tasks.register<JavaExec>("benchmarkSearchCsv") {
+    group = "verification"
+    description = "Exports string-search benchmark results to CSV files."
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.al3000.cloudbase.service.search.StringSearchBenchmarkCsvExporter")
+    dependsOn(tasks.testClasses)
 }

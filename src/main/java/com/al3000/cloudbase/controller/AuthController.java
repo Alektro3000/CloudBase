@@ -7,6 +7,7 @@ import com.al3000.cloudbase.exception.UserAlreadyExistException;
 import com.al3000.cloudbase.exception.UserNotFoundException;
 import com.al3000.cloudbase.service.LoginService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,8 +30,11 @@ public class AuthController {
     }
 
     @PostMapping("sign-in")
-    public ResponseEntity<UserName> SignIn(@RequestBody LoginInfo login, HttpServletRequest httpRequest) throws UserNotFoundException {
-        var logged = loginService.login(login, httpRequest);
+    public ResponseEntity<UserName> SignIn(
+            @RequestBody LoginInfo login,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpServletResponse) throws UserNotFoundException {
+        var logged = loginService.login(login, httpRequest, httpServletResponse);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

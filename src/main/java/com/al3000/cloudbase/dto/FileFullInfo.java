@@ -18,15 +18,19 @@ public record FileFullInfo(String user, String path, @NotEmpty String name, Long
     }
 
     public FilePath getFilePath() {
-        return new FilePath(user, path + name + (isDir() ? "/" : ""));
+        return new FilePath(user,
+                path + name + (isDir() ? "/" : "") //Dir name must end with / to comply with specification
+        );
     }
 
     public FileInfo getFileInfo() {
-        //Don't ask
-        return new FileInfo(path, name + (isDir() ? "/" : ""), size, isDirectory ? "Directory" : "File");
+        return new FileInfo(path,
+                name + (isDir() ? "/" : ""), //Dir name must end with / to comply with specification
+                size,
+                isDirectory ? "DIRECTORY" : "FILE");
     }
     public boolean isRootOfFolder(FilePath filePath) {
-        return (path + name).equals(filePath.path())  ||
+        return (path + name).equals(filePath.path())  || //To cover case of root folder
                 (path + name + "/").equals(filePath.path()) ;
 
     }

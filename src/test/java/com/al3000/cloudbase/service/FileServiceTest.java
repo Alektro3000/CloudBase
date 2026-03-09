@@ -7,6 +7,9 @@ import com.al3000.cloudbase.exception.DestinationAlreadyExist;
 import com.al3000.cloudbase.exception.FileDoesNotExist;
 import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.repository.FileRepository;
+import com.al3000.cloudbase.service.search.LibrarySearch;
+import com.al3000.cloudbase.service.search.StringSearchAlgorithm;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -34,8 +37,15 @@ class FileServiceTest {
     @Mock
     FileRepository fileRepository;
 
+    StringSearchAlgorithm stringSearchAlgorithm = new LibrarySearch();
+
     @InjectMocks
     FileService fileService;
+
+    @BeforeEach
+    void setUp() {
+        fileService = new FileService(fileRepository, stringSearchAlgorithm);
+    }
 
     // Helpers
     private static byte[] readAll(InputStream in) throws IOException {
@@ -67,6 +77,7 @@ class FileServiceTest {
     private FileFullInfo makeDirectory(String path, String name) {
         return new FileFullInfo(username,  path, name, 0L, true);
     }
+
 
     // ---------------- addRecursivelyFolders ----------------
 
@@ -130,6 +141,7 @@ class FileServiceTest {
 
     // ---------------- getFolderFiles ----------------
 
+
     @Test
     void getFolderFiles_filtersDirectories_andMapsToFileInfo() {
         // Arrange
@@ -145,6 +157,24 @@ class FileServiceTest {
 
         // Assert
         assertThat(result).containsExactly(realFile.getFileInfo());
+    }
+
+    @Test
+    void getFolderFilesInRoot_filtersDirectories_andMapsToFileInfo() {
+        // Arrange
+        FilePath folder = new FilePath(username, "");
+        FileFullInfo rootDirectory = makeDirectory("","");
+        FileFullInfo directory = makeDirectory("","a");
+        FileFullInfo realFile = makeFile("a/", "x.txt");
+
+        when(fileRepository.getFolderContent(folder, false))
+                .thenReturn(Stream.of(rootDirectory,  directory, realFile));
+
+        // Act
+        List<FileInfo> result = fileService.getFolderFiles(folder).toList();
+
+        // Assert
+        assertThat(result).contains(realFile.getFileInfo(), directory.getFileInfo());
     }
 
     // ---------------- removeFile ----------------

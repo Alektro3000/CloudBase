@@ -7,6 +7,7 @@ import com.al3000.cloudbase.exception.DestinationAlreadyExist;
 import com.al3000.cloudbase.exception.FileDoesNotExist;
 import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.repository.FileRepository;
+import com.al3000.cloudbase.service.search.StringSearchAlgorithm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.util.Pair;
@@ -26,6 +27,7 @@ import static org.hibernate.internal.util.collections.CollectionHelper.listOf;
 @RequiredArgsConstructor
 public class FileService {
     final private FileRepository fileRepository;
+    final private StringSearchAlgorithm searchService;
 
     public void addRecursivelyFolders(FilePath path) throws InternalServerException {
         String[] parts = path.path().split("/");
@@ -103,7 +105,7 @@ public class FileService {
 
     public Stream<FileInfo> findFiles(FilePath filePath, String query) {
         return fileRepository.getFolderContent(filePath, true)
-                .filter(x -> x.name().contains(query))
+                .filter(x -> searchService.contains(x.name(),query))
                 .filter(FileFullInfo::isFile)
                 .map(FileFullInfo::getFileInfo);
     }

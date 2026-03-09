@@ -78,7 +78,7 @@ public class FileRepository {
                                         .map(x -> new DeleteObject((x.getFullPath())))
                                         .toList())
                         .build()
-        ).forEach(_ -> {});
+        ).forEach(result -> {});
     }
 
     public FileFullInfo getFileInformation(FilePath filePath) throws FileDoesNotExist {
