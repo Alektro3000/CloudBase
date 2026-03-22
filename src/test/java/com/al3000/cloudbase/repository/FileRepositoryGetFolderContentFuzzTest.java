@@ -85,8 +85,8 @@ class FileRepositoryGetFolderContentFuzzTest {
         Result<Item> result = Mockito.mock(Result.class);
         try {
             when(result.get()).thenThrow(new RuntimeException("broken item"));
-        } catch (Exception ignored) {
-            throw new IllegalStateException(ignored);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
         }
         return result;
     }

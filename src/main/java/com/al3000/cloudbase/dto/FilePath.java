@@ -1,7 +1,5 @@
 package com.al3000.cloudbase.dto;
 
-import java.io.FileNotFoundException;
-
 public record FilePath(String username, String path) {
     public String getPrefix() {
         return "user-" + username + "/";
