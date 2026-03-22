@@ -158,6 +158,7 @@ public class FileService {
                 zipOut.closeEntry();
             }
         }
+        zipOut.finish();
     }
 
     public FileInfo createFolder(FilePath filePath) throws InternalServerException {
