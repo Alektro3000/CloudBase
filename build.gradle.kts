@@ -3,6 +3,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.6"
     id("org.springframework.boot") version "3.3.5"
     id("info.solidsoft.pitest") version "1.19.0-rc.3"
+    pmd
     jacoco
 }
 
@@ -48,6 +49,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockito:mockito-core:5.21.0")
     testImplementation("org.junit.platform:junit-platform-suite")
+    testImplementation("com.code-intelligence:jazzer-junit:0.29.1")
 
     //Cucumber
     testImplementation("io.cucumber:cucumber-java:7.20.1")
@@ -92,6 +94,24 @@ tasks.jacocoTestReport {
         csv.required.set(false)
     }
 }
+
+pmd {
+    toolVersion = "7.18.0"
+    isIgnoreFailures = true
+    ruleSets = listOf<String>(
+        "category/java/errorprone.xml",
+        "category/java/bestpractices.xml",
+        "category/java/design.xml",
+        "category/java/security.xml",
+        )
+}
+
+tasks.withType<Pmd>().configureEach {
+    reports {
+        html.required.set(true)
+    }
+}
+
 pitest {
     junit5PluginVersion.set("1.2.3")
 

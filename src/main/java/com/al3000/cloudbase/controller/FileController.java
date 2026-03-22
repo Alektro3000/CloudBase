@@ -2,16 +2,13 @@ package com.al3000.cloudbase.controller;
 
 import com.al3000.cloudbase.dto.FileInfo;
 import com.al3000.cloudbase.dto.FilePath;
-import com.al3000.cloudbase.exception.DestinationAlreadyExist;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.DestinationAlreadyExistsException;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,7 +40,7 @@ public class FileController {
     }
 
     @GetMapping("/move")
-    public ResponseEntity<FileInfo> move(Authentication authentication, @RequestParam String from, @RequestParam String to) throws InternalServerException, DestinationAlreadyExist {
+    public ResponseEntity<FileInfo> move(Authentication authentication, @RequestParam String from, @RequestParam String to) throws InternalServerException, DestinationAlreadyExistsException {
         var result = fileService.move(
                 new FilePath(authentication.getName(), from),
                 new FilePath(authentication.getName(), to)
@@ -52,11 +49,16 @@ public class FileController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity<Resource> download(Authentication authentication, @RequestParam String path) throws FileDoesNotExist {
+    public ResponseEntity<Resource> download(Authentication authentication, @RequestParam String path)
+            throws FileDoesNotExistsException, InternalServerException {
         var inputStreamResource = fileService.downloadObject(new FilePath(authentication.getName(), path));
+
+        var contentDisposition = ContentDisposition.attachment()
+                .filename(path + ".zip")
+                .build();
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + path + ".zip\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(inputStreamResource);
 

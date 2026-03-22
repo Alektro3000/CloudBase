@@ -2,7 +2,7 @@
 package com.al3000.cloudbase.repository;
 
 import com.al3000.cloudbase.dto.FilePath;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -26,16 +26,16 @@ import static org.hibernate.internal.util.collections.CollectionHelper.listOf;
 @Testcontainers
 @ExtendWith(MockitoExtension.class)
 class FileRepositoryMinioIntegrationTest {
-    static final String ACCESS_KEY = "minioadmin";
-    static final String SECRET_KEY = "minioadmin";
-    static final String BUCKET = "test-bucket";
+    static final String accessKey = "minioadmin";
+    static final String secretKey = "minioadmin";
+    static final String bucket = "test-bucket";
 
-    static DockerImageName MINIO_IMAGE = DockerImageName.parse("minio/minio:latest");
+    static DockerImageName minioImage = DockerImageName.parse("minio/minio:latest");
 
     // запуск контейнера
-    static final GenericContainer<?> minio = new GenericContainer<>(MINIO_IMAGE)
-            .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
-            .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
+    static final GenericContainer<?> minio = new GenericContainer<>(minioImage)
+            .withEnv("MINIO_ROOT_USER", accessKey)
+            .withEnv("MINIO_ROOT_PASSWORD", secretKey)
             .withCommand("server", "/data")
             .withExposedPorts(9000);
 
@@ -54,16 +54,16 @@ class FileRepositoryMinioIntegrationTest {
         String endpoint = "http://" + minio.getHost() + ":" + minio.getMappedPort(9000);
         minioClient = MinioClient.builder()
                 .endpoint(endpoint)
-                .credentials(ACCESS_KEY, SECRET_KEY)
+                .credentials(accessKey, secretKey)
                 .build();
 
         // создаём бакет если не существует
         try {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(BUCKET).build());
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
         } catch (Exception ignored) {
             // может уже быть создан
         }
-        fileRepository = new FileRepository(minioClient, BUCKET);
+        fileRepository = new FileRepository(minioClient, bucket);
     }
 
     @Test
@@ -83,7 +83,7 @@ class FileRepositoryMinioIntegrationTest {
 
         try (InputStream is = minioClient.getObject(
                 GetObjectArgs.builder()
-                        .bucket(BUCKET)
+                        .bucket(bucket)
                         .object(expectedObject)
                         .build());
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -103,26 +103,26 @@ class FileRepositoryMinioIntegrationTest {
 
         fileRepository.uploadFile(multipart, path);
 
-        FilePath EndPath = new FilePath(username, "a/hello.txt");
+        FilePath endPath = new FilePath(username, "a/hello.txt");
 
         //Act
-        try (InputStream is = fileRepository.downloadFile(EndPath);
+        try (InputStream is = fileRepository.downloadFile(endPath);
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
             //Assert
             is.transferTo(baos);
             assertThat(baos.toByteArray()).isEqualTo(payload);
-            assertThat(fileRepository.fileExist(EndPath)).isTrue();
+            assertThat(fileRepository.fileExist(endPath)).isTrue();
         }
     }
 
     @Test
     void downloadFile_whenFileDoesNotExist_throwsFileDoesNotExist() {
         // Arrange
-        FilePath EndPath = new FilePath(username, "a/hik.txt");
+        FilePath endPath = new FilePath(username, "a/hik.txt");
 
         //Act & Assert
-        assertThatThrownBy(() -> fileRepository.downloadFile(EndPath)).isInstanceOf(FileDoesNotExist.class);
+        assertThatThrownBy(() -> fileRepository.downloadFile(endPath)).isInstanceOf(FileDoesNotExistsException.class);
 
     }
 
@@ -136,13 +136,13 @@ class FileRepositoryMinioIntegrationTest {
 
         fileRepository.uploadFile(multipart, path);
 
-        FilePath EndPath = new FilePath(username, "a/hello.txt");
+        FilePath endPath = new FilePath(username, "a/hello.txt");
 
         //Act
-        fileRepository.removeFiles(listOf(EndPath));
+        fileRepository.removeFiles(listOf(endPath));
 
         //Assert
-        assertThat(fileRepository.fileExist(EndPath)).isFalse();
+        assertThat(fileRepository.fileExist(endPath)).isFalse();
     }
 
 
@@ -156,14 +156,14 @@ class FileRepositoryMinioIntegrationTest {
 
         fileRepository.uploadFile(multipart, path);
 
-        FilePath EndPath = new FilePath(username, "a/hello.txt");
+        FilePath endPath = new FilePath(username, "a/hello.txt");
 
         //Act
-        var result = fileRepository.getFileInformation(EndPath);
+        var result = fileRepository.getFileInformation(endPath);
 
         //Assert
         assertThat(result.isFile()).isTrue();
-        assertThat(result.getFilePath()).isEqualTo(EndPath);
+        assertThat(result.getFilePath()).isEqualTo(endPath);
         assertThat(result.user()).isEqualTo(username);
         assertThat(result.path()).isEqualTo(path.path());
         assertThat(result.name()).isEqualTo("hello.txt");
@@ -188,10 +188,10 @@ class FileRepositoryMinioIntegrationTest {
     @Test
     void getFileInformation_throwsFileDoesNotExist()  {
         // Arrange
-        FilePath EndPath = new FilePath(username, "a/hi.txt");
+        FilePath endPath = new FilePath(username, "a/hi.txt");
 
         //Act & Assert
-        assertThatThrownBy(() -> fileRepository.getFileInformation(EndPath)).isInstanceOf(FileDoesNotExist.class);
+        assertThatThrownBy(() -> fileRepository.getFileInformation(endPath)).isInstanceOf(FileDoesNotExistsException.class);
     }
 
     @Test
@@ -203,14 +203,14 @@ class FileRepositoryMinioIntegrationTest {
         FilePath path = new FilePath(username, "a/");
 
         fileRepository.uploadFile(multipart, path);
-        FilePath EndPath = new FilePath(username, "a/hello.txt");
-        FilePath TargetPath = new FilePath(username, "a/hi1.txt");
+        FilePath endPath = new FilePath(username, "a/hello.txt");
+        FilePath targetPath = new FilePath(username, "a/hi1.txt");
 
         //Act
-        fileRepository.copyObject(EndPath, TargetPath);
+        fileRepository.copyObject(endPath, targetPath);
 
         //Assert
-        assertThat(fileRepository.fileExist(TargetPath)).isTrue();
+        assertThat(fileRepository.fileExist(targetPath)).isTrue();
     }
 
 }

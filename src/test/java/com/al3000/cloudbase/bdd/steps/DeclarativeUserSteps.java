@@ -5,7 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import io.cucumber.java.en.Given;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 public class DeclarativeUserSteps extends BaseStepDefinitions {
 
@@ -16,7 +16,7 @@ public class DeclarativeUserSteps extends BaseStepDefinitions {
 
     @When("the current profile is requested")
     public void theCurrentProfileIsRequested() throws Exception {
-        MockHttpServletRequestBuilder requestBuilder = post(context.getApiBasePath() + "/me")
+        MockHttpServletRequestBuilder requestBuilder = get(context.getApiBasePath() + "/me")
                 .accept(MediaType.APPLICATION_JSON);
         context.setLastResult(perform(requestBuilder));
     }

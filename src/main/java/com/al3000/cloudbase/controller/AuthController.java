@@ -21,7 +21,7 @@ public class AuthController {
     private final LoginService loginService;
 
     @PostMapping("sign-up")
-    public ResponseEntity<UserName> SignUp(@Valid @RequestBody LoginInfo login) throws UserAlreadyExistException {
+    public ResponseEntity<UserName> signUp(@Valid @RequestBody LoginInfo login) throws UserAlreadyExistException {
         loginService.createUser(login);
 
         return ResponseEntity
@@ -30,7 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("sign-in")
-    public ResponseEntity<UserName> SignIn(
+    public ResponseEntity<UserName> signIn(
             @RequestBody LoginInfo login,
             HttpServletRequest httpRequest,
             HttpServletResponse httpServletResponse) throws UserNotFoundException {

@@ -2,9 +2,10 @@ package com.al3000.cloudbase.repository;
 
 import com.al3000.cloudbase.dto.FileFullInfo;
 import com.al3000.cloudbase.dto.FilePath;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import com.al3000.cloudbase.exception.InternalServerException;
 import io.minio.*;
+import io.minio.errors.*;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +13,11 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -37,7 +42,7 @@ public class FileRepository {
         return userBucketName;
     }
 
-    public InputStream downloadFile(FilePath path) throws FileDoesNotExist {
+    public InputStream downloadFile(FilePath path) throws FileDoesNotExistsException, InternalServerException {
         try {
             return minioClient.getObject(
                     GetObjectArgs.builder()
@@ -45,8 +50,10 @@ public class FileRepository {
                             .object(path.getFullPath())
                             .build()
             );
-        } catch (Exception e) {
-            throw new FileDoesNotExist(e.getMessage());
+        } catch (InvalidKeyException e) {
+            throw new FileDoesNotExistsException(path, e);
+        } catch (MinioException | NoSuchAlgorithmException | IOException e) {
+            throw new InternalServerException(e);
         }
     }
 
@@ -64,8 +71,8 @@ public class FileRepository {
                             .contentType(file.getContentType())
                             .build()
             );
-        } catch (Exception e) {
-            throw new InternalServerException(e.getMessage());
+        } catch (MinioException | IOException | GeneralSecurityException e) {
+            throw new InternalServerException(e);
         }
     }
 
@@ -78,10 +85,11 @@ public class FileRepository {
                                         .map(x -> new DeleteObject((x.getFullPath())))
                                         .toList())
                         .build()
-        ).forEach(result -> {});
+        ).forEach(result -> {
+        });
     }
 
-    public FileFullInfo getFileInformation(FilePath filePath) throws FileDoesNotExist {
+    public FileFullInfo getFileInformation(FilePath filePath) throws FileDoesNotExistsException, InternalServerException {
         try {
             var statObject = minioClient.statObject(
                     StatObjectArgs.builder()
@@ -96,7 +104,7 @@ public class FileRepository {
                         filePath.getDirectoryPath(),
                         filePath.getDirectoryName(),
                         statObject.size(),
-                        true                );
+                        true);
             }
             return new FileFullInfo(
                     filePath.username(),
@@ -106,8 +114,10 @@ public class FileRepository {
                     false
             );
 
-        } catch (Exception e) {
-            throw new FileDoesNotExist(e.getMessage());
+        } catch (InvalidKeyException e) {
+            throw new FileDoesNotExistsException(filePath, e);
+        } catch (MinioException | IOException | GeneralSecurityException e) {
+            throw new InternalServerException(e);
         }
     }
 
@@ -130,8 +140,8 @@ public class FileRepository {
                     0L,
                     true
             );
-        } catch (Exception e) {
-            throw new InternalServerException(e.getMessage());
+        } catch (MinioException | IOException | GeneralSecurityException e) {
+            throw new InternalServerException(e);
         }
     }
 
@@ -147,7 +157,7 @@ public class FileRepository {
                             Item object;
                             try {
                                 object = file.get();
-                            } catch (Exception e) {
+                            } catch (MinioException | IOException | GeneralSecurityException e) {
                                 return Optional.<FileFullInfo>empty();
                             }
                             var objectName = object.objectName();
@@ -162,7 +172,7 @@ public class FileRepository {
                             var path = noPrefix;
                             String name;
                             if (path.contains("/")) {
-                                path = path.substring(0, path.lastIndexOf('/')+1);
+                                path = path.substring(0, path.lastIndexOf('/') + 1);
                                 name = noPrefix.substring(path.length());
                             } else {
                                 //Case of empty path
@@ -190,12 +200,16 @@ public class FileRepository {
                             .build()
             );
             return true;
-        } catch (Exception e) {
+        } catch (MinioException | IOException | GeneralSecurityException e) {
             return false;
         }
     }
 
-    public void copyObject(FilePath source, FilePath target) throws Exception {
+    public void copyObject(FilePath source, FilePath target)
+            throws ServerException, InsufficientDataException,
+            ErrorResponseException, IOException,
+            NoSuchAlgorithmException, InvalidKeyException,
+            InvalidResponseException, XmlParserException, InternalException {
         minioClient.copyObject(
                 CopyObjectArgs.builder()
                         .bucket(getBucketName())

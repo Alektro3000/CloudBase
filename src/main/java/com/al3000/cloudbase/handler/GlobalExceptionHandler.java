@@ -1,8 +1,8 @@
 package com.al3000.cloudbase.handler;
 
 import com.al3000.cloudbase.dto.ErrorResponse;
-import com.al3000.cloudbase.exception.DestinationAlreadyExist;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.DestinationAlreadyExistsException;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import com.al3000.cloudbase.exception.InternalServerException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,14 +28,14 @@ public class GlobalExceptionHandler {
         return buildResponseEntity(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
-    @ExceptionHandler(FileDoesNotExist.class)
-    public ResponseEntity<ErrorResponse> handleFileDoesNotExist(FileDoesNotExist ex) {
+    @ExceptionHandler(FileDoesNotExistsException.class)
+    public ResponseEntity<ErrorResponse> handleFileDoesNotExist(FileDoesNotExistsException ex) {
         return buildResponseEntity(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
 
-    @ExceptionHandler(DestinationAlreadyExist.class)
-    public ResponseEntity<ErrorResponse> handleDestinationAlreadyExist(DestinationAlreadyExist ex) {
+    @ExceptionHandler(DestinationAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleDestinationAlreadyExist(DestinationAlreadyExistsException ex) {
         return buildResponseEntity(HttpStatus.CONFLICT, ex.getMessage());
     }
 

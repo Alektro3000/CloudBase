@@ -3,8 +3,8 @@ package com.al3000.cloudbase.service;
 import com.al3000.cloudbase.dto.FileFullInfo;
 import com.al3000.cloudbase.dto.FileInfo;
 import com.al3000.cloudbase.dto.FilePath;
-import com.al3000.cloudbase.exception.DestinationAlreadyExist;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.DestinationAlreadyExistsException;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.repository.FileRepository;
 import com.al3000.cloudbase.service.search.LibrarySearch;
@@ -229,7 +229,7 @@ class FileServiceTest {
     // ---------------- moveFile ----------------
 
     @Test
-    void move_whenMoveFile_copiesAll_removesSources_returnsTargetInfo() throws InternalServerException, DestinationAlreadyExist, FileDoesNotExist {
+    void move_whenMoveFile_copiesAll_removesSources_returnsTargetInfo() throws InternalServerException, DestinationAlreadyExistsException, FileDoesNotExistsException {
         // Arrange
         FilePath source = new FilePath(username, "a/x.txt");
         FilePath target = new FilePath(username, "b/x.txt");
@@ -265,7 +265,7 @@ class FileServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> fileService.move(source, target))
-                .isInstanceOf(DestinationAlreadyExist.class);
+                .isInstanceOf(DestinationAlreadyExistsException.class);
 
         verify(fileRepository).getFolderContent(any(), any());
         verifyNoMoreInteractions(fileRepository);
@@ -328,7 +328,7 @@ class FileServiceTest {
     @Test
     void findFiles_filtersBySubstring() {
         // Arrange
-        FilePath root = new FilePath(username, "a");
+        FilePath root = new FilePath(username, "a/");
         String query = "cat";
 
         FileFullInfo directory = makeDirectory("a/", "cat");
@@ -370,7 +370,7 @@ class FileServiceTest {
     @Test
     void downloadFolder_skipsDirectories_andAddsRelativeEntryNames() throws Exception {
         // Arrange
-        FilePath folder = new FilePath(username, "a");
+        FilePath folder = new FilePath(username, "a/");
 
         FileFullInfo dir = makeDirectory("a/", "sub");
         FileFullInfo file = makeFile("a/sub/", "x.txt");
@@ -403,7 +403,7 @@ class FileServiceTest {
     @Test
     void downloadFolder_catchError_Rethrows() throws Exception {
         // Arrange
-        FilePath folder = new FilePath(username, "a");
+        FilePath folder = new FilePath(username, "a/");
 
         FileFullInfo dir = makeDirectory("a/", "sub");
         FileFullInfo file = makeFile("a/sub/", "x.txt");
@@ -422,7 +422,7 @@ class FileServiceTest {
     @Test
     void downloadObject_whenDir_returnsZipStreamContainingFiles() throws Exception {
         // Arrange
-        FilePath folder = new FilePath(username, "a");
+        FilePath folder = new FilePath(username, "a/");
 
         FileFullInfo info = makeDirectory("", "a");
 
@@ -463,7 +463,7 @@ class FileServiceTest {
     @Test
     void createFolder_callsAddRecursivelyFolders_thenRepositoryCreateFolder_andReturnsFileInfo() throws Exception {
         // Arrange
-        FilePath folder = new FilePath(username, "a/b");
+        FilePath folder = new FilePath(username, "a/b/");
 
         FileFullInfo created = makeDirectory("a/" , "b");
         when(fileRepository.createFolder(folder)).thenReturn(created);

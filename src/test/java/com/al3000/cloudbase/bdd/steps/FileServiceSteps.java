@@ -1,7 +1,7 @@
 package com.al3000.cloudbase.bdd.steps;
 
-import com.al3000.cloudbase.exception.DestinationAlreadyExist;
-import com.al3000.cloudbase.exception.FileDoesNotExist;
+import com.al3000.cloudbase.exception.DestinationAlreadyExistsException;
+import com.al3000.cloudbase.exception.FileDoesNotExistsException;
 import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.service.FileService;
 import io.cucumber.datatable.DataTable;
@@ -74,11 +74,12 @@ public class FileServiceSteps extends BaseStepDefinitions {
     @Given("the file service will fail move with destination conflict {string}")
     public void theFileServiceWillFailMoveWithDestinationConflict(String message) throws Exception {
         when(fileService.move(any(), any()))
-                .thenThrow(new DestinationAlreadyExist(message));
+                .thenThrow(new DestinationAlreadyExistsException(message));
     }
 
     @Given("the file service will accept deletions")
     public void theFileServiceWillAcceptDeletions() {
+        //Impossible to check in this step
     }
 
     @Given("the file service will return downloadable content {string}")
@@ -90,7 +91,7 @@ public class FileServiceSteps extends BaseStepDefinitions {
     @Given("the file service will fail download with missing file {string}")
     public void theFileServiceWillFailDownloadWithMissingFile(String message) throws Exception {
         when(fileService.downloadObject(any()))
-                .thenThrow(new FileDoesNotExist(message));
+                .thenThrow(new FileDoesNotExistsException(message));
     }
 
     @And("the file service should have been asked to list folder {string} for user {string}")
