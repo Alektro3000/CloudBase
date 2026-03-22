@@ -143,7 +143,7 @@ public class FileService {
     void downloadFolder(FilePath path, ZipOutputStream zipOut) throws IOException, FileDoesNotExistsException, InternalServerException {
         for (var file : fileRepository.getFolderContent(path, true).toList()) {
             // skip folder markers
-            if (file.isDir()) return;
+            if (file.isDir()) continue;
 
             // Read object content
             try (InputStream in = fileRepository.downloadFile(file.getFilePath())

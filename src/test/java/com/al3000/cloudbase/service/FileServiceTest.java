@@ -9,6 +9,7 @@ import com.al3000.cloudbase.exception.InternalServerException;
 import com.al3000.cloudbase.repository.FileRepository;
 import com.al3000.cloudbase.service.search.LibrarySearch;
 import com.al3000.cloudbase.service.search.StringSearchAlgorithm;
+import io.minio.errors.ServerException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -315,7 +316,7 @@ class FileServiceTest {
         when(fileRepository.getFolderContent(source, true)).thenReturn(Stream.of(obj));
         when(fileRepository.fileExist(any())).thenReturn(false);
 
-        doThrow(new RuntimeException("boom")).when(fileRepository)
+        doThrow(new ServerException("boom", 500, "boom")).when(fileRepository)
                 .copyObject(any(), any());
 
         // Act & Assert
@@ -410,12 +411,12 @@ class FileServiceTest {
 
         when(fileRepository.getFolderContent(folder, true)).thenReturn(Stream.of(dir, file));
 
-        when(fileRepository.downloadFile(file.getFilePath())).thenThrow(new RuntimeException());
+        when(fileRepository.downloadFile(file.getFilePath())).thenThrow(new InternalServerException("boom"));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zout = new ZipOutputStream(baos)) {
             // Act & Assert
-            assertThatThrownBy(() -> fileService.downloadFolder(folder, zout)).isInstanceOf(RuntimeException.class);
+            assertThatThrownBy(() -> fileService.downloadFolder(folder, zout)).isInstanceOf(InternalServerException.class);
         }
     }
 

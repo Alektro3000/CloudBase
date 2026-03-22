@@ -5,9 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 class BaseTest {
-    @Test
-    void contextLoads() {
-    }
 
     @Test
     void assertTest() {

@@ -7,6 +7,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.Result;
+import io.minio.errors.ServerException;
 import io.minio.messages.Item;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,7 +85,7 @@ class FileRepositoryGetFolderContentFuzzTest {
     private static Result<Item> defectiveResult() {
         Result<Item> result = Mockito.mock(Result.class);
         try {
-            when(result.get()).thenThrow(new RuntimeException("broken item"));
+            when(result.get()).thenThrow(new ServerException("boom", 500, "boom"));
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

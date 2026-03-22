@@ -23,7 +23,7 @@ public class FilePathTest {
 
     @ParameterizedTest
     @MethodSource("getFolderPathName_sources")
-    public void getFolderPathName(String folderPath, String expectedFolderPath, String folderName)   {
+    void getFolderPathName(String folderPath, String expectedFolderPath, String folderName)   {
         var path = new FilePath(username, folderPath);
 
         assertThat(path.getDirectoryPath()).isEqualTo(expectedFolderPath);

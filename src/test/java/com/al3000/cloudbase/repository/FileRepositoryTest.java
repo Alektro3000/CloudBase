@@ -1,11 +1,12 @@
 package com.al3000.cloudbase.repository;
 
 import com.al3000.cloudbase.dto.FileFullInfo;
-import com.al3000.cloudbase.dto.FileFullInfoTest;
 import com.al3000.cloudbase.dto.FilePath;
 import com.al3000.cloudbase.exception.InternalServerException;
 import io.minio.MinioClient;
 import io.minio.Result;
+import io.minio.errors.InternalException;
+import io.minio.errors.ServerException;
 import io.minio.messages.Item;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,7 @@ public class FileRepositoryTest {
     }
     static Result<Item> makeDefectItem() throws Exception {
         Result<Item>  mockItem = mock(Result.class);
-        when(mockItem.get()).thenThrow(new RuntimeException());
+        when(mockItem.get()).thenThrow(new ServerException("boom", 500, "boom"));
         return (mockItem);
     }
 
@@ -87,7 +88,7 @@ public class FileRepositoryTest {
 
     @ParameterizedTest
     @MethodSource("folderContentCases")
-    void getFolderContent(List<Result<Item>> minioItems, FilePath folderPath, Boolean recursive, List<FileFullInfoTest> expected) {
+    void getFolderContent(List<Result<Item>> minioItems, FilePath folderPath, Boolean recursive, List<FileFullInfo> expected) {
         // Arrange
         when(client.listObjects(argThat( x-> Objects.equals(x.prefix(), "user-" + username + "/" + folderPath.path()))))
                 .thenReturn(minioItems);
@@ -106,7 +107,7 @@ public class FileRepositoryTest {
         byte[] payload = "hello from integration".getBytes(StandardCharsets.UTF_8);
         var multipart = new MockMultipartFile("file", "hello.txt", "text/plain", payload);
 
-        when(client.putObject(ArgumentMatchers.any())).thenThrow(new RuntimeException("Minio error"));
+        when(client.putObject(ArgumentMatchers.any())).thenThrow(new InternalException("Minio error","trace"));
 
         FilePath path = new FilePath(username, "a/");
 

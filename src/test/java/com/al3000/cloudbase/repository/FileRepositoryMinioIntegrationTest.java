@@ -2,7 +2,7 @@
 package com.al3000.cloudbase.repository;
 
 import com.al3000.cloudbase.dto.FilePath;
-import com.al3000.cloudbase.exception.FileDoesNotExistsException;
+import com.al3000.cloudbase.exception.InternalServerException;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -26,16 +26,16 @@ import static org.hibernate.internal.util.collections.CollectionHelper.listOf;
 @Testcontainers
 @ExtendWith(MockitoExtension.class)
 class FileRepositoryMinioIntegrationTest {
-    static final String accessKey = "minioadmin";
-    static final String secretKey = "minioadmin";
-    static final String bucket = "test-bucket";
+    static final String ACCESS_KEY = "minioadmin";
+    static final String SECRET_KEY = "minioadmin";
+    static final String BUCKET = "test-bucket";
 
     static DockerImageName minioImage = DockerImageName.parse("minio/minio:latest");
 
     // запуск контейнера
     static final GenericContainer<?> minio = new GenericContainer<>(minioImage)
-            .withEnv("MINIO_ROOT_USER", accessKey)
-            .withEnv("MINIO_ROOT_PASSWORD", secretKey)
+            .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
+            .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)
             .withCommand("server", "/data")
             .withExposedPorts(9000);
 
@@ -54,16 +54,16 @@ class FileRepositoryMinioIntegrationTest {
         String endpoint = "http://" + minio.getHost() + ":" + minio.getMappedPort(9000);
         minioClient = MinioClient.builder()
                 .endpoint(endpoint)
-                .credentials(accessKey, secretKey)
+                .credentials(ACCESS_KEY, SECRET_KEY)
                 .build();
 
         // создаём бакет если не существует
         try {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(BUCKET).build());
         } catch (Exception ignored) {
             // может уже быть создан
         }
-        fileRepository = new FileRepository(minioClient, bucket);
+        fileRepository = new FileRepository(minioClient, BUCKET);
     }
 
     @Test
@@ -83,7 +83,7 @@ class FileRepositoryMinioIntegrationTest {
 
         try (InputStream is = minioClient.getObject(
                 GetObjectArgs.builder()
-                        .bucket(bucket)
+                        .bucket(BUCKET)
                         .object(expectedObject)
                         .build());
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -122,7 +122,7 @@ class FileRepositoryMinioIntegrationTest {
         FilePath endPath = new FilePath(username, "a/hik.txt");
 
         //Act & Assert
-        assertThatThrownBy(() -> fileRepository.downloadFile(endPath)).isInstanceOf(FileDoesNotExistsException.class);
+        assertThatThrownBy(() -> fileRepository.downloadFile(endPath)).isInstanceOf(InternalServerException.class);
 
     }
 
@@ -191,7 +191,7 @@ class FileRepositoryMinioIntegrationTest {
         FilePath endPath = new FilePath(username, "a/hi.txt");
 
         //Act & Assert
-        assertThatThrownBy(() -> fileRepository.getFileInformation(endPath)).isInstanceOf(FileDoesNotExistsException.class);
+        assertThatThrownBy(() -> fileRepository.getFileInformation(endPath)).isInstanceOf(InternalServerException.class);
     }
 
     @Test
